@@ -1,0 +1,1 @@
+export const baseURL = 'https://apiqa-logistica.addiis.com.co';

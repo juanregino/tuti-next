@@ -1,0 +1,44 @@
+trigger:
+- QA
+
+pool:
+  name: Hetzner_tuti
+
+stages:
+- stage: DefinicionInsumos
+  displayName: 'Preparar insumos'
+  jobs:
+    - job: CopiaRecursos
+      displayName: 'Copia de recursos'
+      steps:
+        - task: CopyFiles@2
+          displayName: 'Copiar recursos adicionales'
+          inputs:
+            SourceFolder: '/home/addiis/sourceConf'
+            Contents: '**'
+            TargetFolder: '$(Build.SourcesDirectory)'
+        - script: |
+            CONTAINER_ID_OR_NAME="cont_srvqa_fr"
+
+            if [ $(docker ps -q -f name=^$CONTAINER_ID_OR_NAME$) ]; then
+                docker stop $CONTAINER_ID_OR_NAME
+                docker rm $CONTAINER_ID_OR_NAME
+                docker rmi img_srvqa_fr
+            else
+                echo "El contenedor $CONTAINER_ID_OR_NAME no está en ejecución."
+            fi
+          displayName: 'Desechar contenedores previos'
+
+- stage: Compilacion
+  dependsOn: DefinicionInsumos
+  displayName: 'Compilación y ejecución'
+  jobs:
+    - job: ConstruccionYEjecucion
+      displayName: 'Construir y ejecutar'
+      steps:
+        - checkout: none
+        - script: docker build -t "img_srvqa_fr" .
+          displayName: 'Construir imagen para QA'
+
+        - script: docker run --name cont_srvqa_fr --restart=always -d -p 3000:3000 -e TZ=America/Bogota img_srvqa_fr:latest
+          displayName: 'Crear nuevo contenedor'
